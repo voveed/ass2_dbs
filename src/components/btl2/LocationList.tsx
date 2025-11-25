@@ -28,10 +28,11 @@ export default function LocationList() {
     const [filterStatus, setFilterStatus] = useState('ALL');
     const [filterType, setFilterType] = useState('ALL');
     const [sortBy, setSortBy] = useState('name');
+    const [viewMode, setViewMode] = useState<'active' | 'trash'>('active');
 
     useEffect(() => {
         fetchLocations();
-    }, [searchTerm, filterType, filterStatus, sortBy]);
+    }, [searchTerm, filterType, filterStatus, sortBy, viewMode]);
 
     const fetchLocations = async () => {
         setLoading(true);
@@ -48,7 +49,7 @@ export default function LocationList() {
                 ownerID,
                 search: searchTerm,
                 locType: filterType,
-                status: filterStatus,
+                status: viewMode === 'trash' ? 'INACTIVE' : filterStatus,
                 sortBy
             });
 
@@ -75,6 +76,131 @@ export default function LocationList() {
     const handleEdit = (location: Location) => {
         setSelectedLocation(location);
         setShowForm(true);
+    };
+
+    const handleDelete = async (locID: number, locName: string) => {
+        if (!confirm(`Bạn có chắc chắn muốn xóa địa điểm "${locName}"?`)) {
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+        try {
+            const ownerID = localStorage.getItem('ownerBOID');
+
+            if (!ownerID) {
+                throw new Error('Không tìm thấy thông tin owner');
+            }
+
+            const response = await fetch(
+                `http://localhost:3001/make-server-aef03c12/locations/${locID}?ownerID=${ownerID}`,
+                {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Không thể xóa địa điểm');
+            }
+
+            alert('✅ Đã xóa địa điểm thành công!');
+            fetchLocations();
+        } catch (err: any) {
+            setError(err.message);
+            alert(`❌ Lỗi: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRestore = async (locID: number, locName: string) => {
+        if (!confirm(`Bạn có chắc muốn khôi phục "${locName}"?`)) {
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+
+        try {
+            const ownerID = localStorage.getItem('ownerBOID');
+
+            if (!ownerID) {
+                throw new Error('Không tìm thấy thông tin owner');
+            }
+
+            const response = await fetch(
+                `http://localhost:3001/make-server-aef03c12/locations/${locID}/restore`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ ownerID: parseInt(ownerID) })
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Không thể khôi phục địa điểm');
+            }
+
+            alert('✅ Đã khôi phục địa điểm thành công!');
+            fetchLocations();
+        } catch (err: any) {
+            setError(err.message);
+            alert(`❌ Lỗi: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleHardDelete = async (locID: number, locName: string) => {
+        // Double confirmation for permanent delete
+        if (!confirm(`⚠️ CẢNH BÁO: Xóa vĩnh viễn "${locName}"?\n\nHành động này KHÔNG THỂ KHÔI PHỤC!`)) {
+            return;
+        }
+
+        if (!confirm(`Bạn THỰC SỰ CHẮC CHẮN muốn xóa vĩnh viễn "${locName}"?\n\nTất cả đánh giá, hình ảnh, và lịch sử sẽ bị mất!`)) {
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+
+        try {
+            const ownerID = localStorage.getItem('ownerBOID');
+
+            if (!ownerID) {
+                throw new Error('Không tìm thấy thông tin owner');
+            }
+
+            const response = await fetch(
+                `http://localhost:3001/make-server-aef03c12/locations/${locID}/permanent?ownerID=${ownerID}`,
+                {
+                    method: 'DELETE'
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Không thể xóa vĩnh viễn địa điểm');
+            }
+
+            alert('🗑️ Đã xóa vĩnh viễn địa điểm khỏi hệ thống!');
+            fetchLocations();
+        } catch (err: any) {
+            setError(err.message);
+            alert(`❌ Lỗi: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleAdd = () => {
@@ -115,6 +241,22 @@ export default function LocationList() {
             </div>
 
             {error && <div style={styles.error}>{error}</div>}
+
+            {/* Tabs */}
+            <div style={styles.tabs}>
+                <button
+                    style={viewMode === 'active' ? styles.tabActive : styles.tab}
+                    onClick={() => setViewMode('active')}
+                >
+                    📍 Hoạt động ({viewMode === 'active' ? locations.length : '?'})
+                </button>
+                <button
+                    style={viewMode === 'trash' ? styles.tabActive : styles.tab}
+                    onClick={() => setViewMode('trash')}
+                >
+                    🗑️ Thùng rác
+                </button>
+            </div>
 
             {/* Filters */}
             <div style={styles.filters}>
@@ -171,20 +313,75 @@ export default function LocationList() {
             ) : (
                 <div style={styles.grid}>
                     {locations.map((loc) => (
-                        <div key={loc.locID} style={styles.card} onClick={() => handleViewDetail(loc.locID)}>
-                            <div style={styles.cardHeader}>
-                                <span style={styles.badge}>{loc.locType}</span>
-                                <span style={loc.status === 'ACTIVE' ? styles.statusActive : styles.statusInactive}>
-                                    {loc.status}
-                                </span>
+                        <div key={loc.locID} style={styles.card}>
+                            <div onClick={() => handleViewDetail(loc.locID)} style={{ cursor: 'pointer', flex: 1 }}>
+                                <div style={styles.cardHeader}>
+                                    <span style={styles.badge}>{loc.locType}</span>
+                                    <span style={loc.status === 'ACTIVE' ? styles.statusActive : styles.statusInactive}>
+                                        {loc.status}
+                                    </span>
+                                </div>
+                                <h3 style={styles.cardTitle}>{loc.locName}</h3>
+                                <p style={styles.cardAddress}>
+                                    📍 {loc.street}, {loc.district}, {loc.province}
+                                </p>
+                                {loc.priceLev && (
+                                    <p style={styles.cardPrice}>💰 {loc.priceLev}</p>
+                                )}
                             </div>
-                            <h3 style={styles.cardTitle}>{loc.locName}</h3>
-                            <p style={styles.cardAddress}>
-                                📍 {loc.street}, {loc.district}, {loc.province}
-                            </p>
-                            {loc.priceLev && (
-                                <p style={styles.cardPrice}>💰 {loc.priceLev}</p>
-                            )}
+
+                            {/* Action Buttons */}
+                            <div style={styles.cardActions}>
+                                {viewMode === 'active' ? (
+                                    <>
+                                        <button
+                                            style={styles.btnEdit}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleEdit(loc);
+                                            }}
+                                            title="Sửa địa điểm"
+                                        >
+                                            ✏️ Sửa
+                                        </button>
+                                        {loc.status === 'ACTIVE' && (
+                                            <button
+                                                style={styles.btnDelete}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDelete(loc.locID, loc.locName);
+                                                }}
+                                                title="Xóa địa điểm (soft delete)"
+                                            >
+                                                🗑️ Xóa
+                                            </button>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <button
+                                            style={styles.btnRestore}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRestore(loc.locID, loc.locName);
+                                            }}
+                                            title="Khôi phục địa điểm"
+                                        >
+                                            ↩️ Khôi phục
+                                        </button>
+                                        <button
+                                            style={styles.btnHardDelete}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleHardDelete(loc.locID, loc.locName);
+                                            }}
+                                            title="Xóa vĩnh viễn khỏi database"
+                                        >
+                                            💀 Xóa vĩnh viễn
+                                        </button>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -302,9 +499,43 @@ const styles = {
         border: '1px solid rgba(139, 92, 246, 0.2)',
         borderRadius: '16px',
         padding: '20px',
+        transition: 'all 0.3s',
+        boxShadow: '0 4px 20px rgba(139, 92, 246, 0.1)',
+        display: 'flex',
+        flexDirection: 'column' as const
+    },
+    cardActions: {
+        display: 'flex',
+        gap: '8px',
+        marginTop: '16px',
+        paddingTop: '16px',
+        borderTop: '1px solid rgba(139, 92, 246, 0.1)'
+    },
+    btnEdit: {
+        flex: 1,
+        padding: '10px 16px',
+        background: 'rgba(139, 92, 246, 0.2)',
+        color: '#C084FC',
+        border: '1px solid rgba(139, 92, 246, 0.3)',
+        borderRadius: '8px',
+        fontSize: '14px',
+        fontWeight: '600',
         cursor: 'pointer',
         transition: 'all 0.3s',
-        boxShadow: '0 4px 20px rgba(139, 92, 246, 0.1)'
+        fontFamily: 'Montserrat, sans-serif'
+    },
+    btnDelete: {
+        flex: 1,
+        padding: '10px 16px',
+        background: 'rgba(239, 68, 68, 0.1)',
+        color: '#FCA5A5',
+        border: '1px solid rgba(239, 68, 68, 0.3)',
+        borderRadius: '8px',
+        fontSize: '14px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        transition: 'all 0.3s',
+        fontFamily: 'Montserrat, sans-serif'
     },
     cardHeader: {
         display: 'flex',
@@ -347,6 +578,61 @@ const styles = {
         fontWeight: '600',
         margin: '8px 0 0 0'
     },
+    tabs: {
+        display: 'flex',
+        gap: '8px',
+        marginBottom: '24px',
+        borderBottom: '2px solid rgba(139, 92, 246, 0.2)'
+    },
+    tab: {
+        padding: '12px 24px',
+        background: 'transparent',
+        color: 'rgba(255, 255, 255, 0.7)',
+        border: 'none',
+        borderBottom: '2px solid transparent',
+        cursor: 'pointer',
+        fontSize: '15px',
+        fontWeight: '600',
+        transition: 'all 0.3s',
+        fontFamily: 'Montserrat, sans-serif'
+    },
+    tabActive: {
+        padding: '12px 24px',
+        background: 'transparent',
+        color: '#A855F7',
+        border: 'none',
+        borderBottom: '2px solid #A855F7',
+        cursor: 'pointer',
+        fontSize: '15px',
+        fontWeight: '600',
+        fontFamily: 'Montserrat, sans-serif'
+    },
+    btnRestore: {
+        flex: 1,
+        padding: '10px 16px',
+        background: 'rgba(16, 185, 129, 0.2)',
+        color: '#6EE7B7',
+        border: '1px solid rgba(16, 185, 129, 0.3)',
+        borderRadius: '8px',
+        fontSize: '14px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        transition: 'all 0.3s',
+        fontFamily: 'Montserrat, sans-serif'
+    },
+    btnHardDelete: {
+        flex: 1,
+        padding: '10px 16px',
+        background: 'rgba(239, 68, 68, 0.2)',
+        color: '#FCA5A5',
+        border: '1px solid rgba(239, 68, 68, 0.3)',
+        borderRadius: '8px',
+        fontSize: '14px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        transition: 'all 0.3s',
+        fontFamily: 'Montserrat, sans-serif'
+    },
     footer: {
         textAlign: 'center' as const,
         color: 'rgba(255, 255, 255, 0.7)',
@@ -358,12 +644,6 @@ const styles = {
 // Add hover effects
 const styleSheet = document.createElement('style');
 styleSheet.textContent = `
-  .card:hover {
-    border-color: rgba(139, 92, 246, 0.4);
-    box-shadow: 0 8px 30px rgba(139, 92, 246, 0.2);
-    transform: translateY(-4px);
-  }
-  
   button:hover {
     transform: translateY(-2px);
     box-shadow: 0 12px 24px rgba(139, 92, 246, 0.4);

@@ -127,7 +127,7 @@ export default function LocationForm({ initialData, onSuccess }: LocationFormPro
                         >
                             <option value="HOTEL">Khách sạn</option>
                             <option value="RESTAURANT">Nhà hàng</option>
-                            <option value="ENTERTAINMENT">Vui chơi giải trí</option>
+                            <option value="VENUE">Vui chơi giải trí</option>
                         </select>
                     </div>
 

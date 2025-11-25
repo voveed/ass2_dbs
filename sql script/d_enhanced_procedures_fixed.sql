@@ -70,10 +70,17 @@ BEGIN
     END IF;
 
     -- 4. Validate price level if provided
-    IF p_priceLev IS NOT NULL AND p_priceLev NOT IN ('Bình dân', 'Trung bình', 'Cao cấp', 'Xa xỉ') THEN
+    IF p_priceLev IS NOT NULL AND p_priceLev NOT IN ('BUDGET', 'MODERATE', 'UPSCALE', 'LUXURY') THEN
         SET p_message = 'Lỗi: Mức giá phải là: Bình dân, Trung bình, Cao cấp hoặc Xa xỉ.';
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Mức giá không hợp lệ.';
     END IF;
+
+
+
+
+
+
+
 
     -- 5. Validate owner exists and is verified
     SELECT U.role, B.auStatus INTO owner_role, owner_status
@@ -286,7 +293,12 @@ BEGIN
         COUNT(DISTINCT CASE WHEN R.status = 'COMPLETED' THEN R.reservationID END) as totalCompletedBookings,
         COUNT(DISTINCT CASE WHEN R.status IN ('PENDING', 'CONFIRMED') THEN R.reservationID END) as pendingBookings,
         COALESCE(SUM(CASE WHEN T.status = 'COMPLETED' THEN T.paidAmount ELSE 0 END), 0) as totalRevenue,
-        COALESCE(AVG(RV.ratingPoints), 0) as averageRating,
+        -- Chỉ tính avg rating cho locations ACTIVE và có ít nhất 1 review
+        CASE 
+            WHEN L.status = 'ACTIVE' AND COUNT(DISTINCT RV.reviewID) > 0 
+            THEN COALESCE(AVG(RV.ratingPoints), 0)
+            ELSE 0
+        END as averageRating,
         COUNT(DISTINCT F.fbID) as totalReviews
     FROM LOCATION L
     LEFT JOIN LOCATION_HAS_PRODUCT LHP ON L.locID = LHP.locID

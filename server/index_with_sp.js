@@ -20,7 +20,7 @@ app.use(express.json());
 const dbConfig = {
     host: 'localhost',
     user: 'root',
-    password: 's',
+    password: 's5',
     database: 'VIVUVIET',
     waitForConnections: true,
     connectionLimit: 10,
@@ -201,6 +201,52 @@ apiRouter.delete('/locations/:id', async (req, res) => {
         }
     } catch (e) {
         console.error('Error in DELETE /locations:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+apiRouter.post('/locations/:id/restore', async (req, res) => {
+    const locID = req.params.id;
+    const { ownerID } = req.body;
+
+    try {
+        if (!ownerID) {
+            return res.status(400).json({ error: 'ownerID required for security' });
+        }
+
+        await pool.query('CALL sp_restore_location(?, ?, @success, @msg)', [locID, ownerID]);
+        const [[outParams]] = await pool.query('SELECT @success as success, @msg as message');
+
+        if (outParams.success) {
+            res.json({ success: true, message: outParams.message });
+        } else {
+            res.status(400).json({ error: outParams.message });
+        }
+    } catch (e) {
+        console.error('Error in POST /locations/:id/restore:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+apiRouter.delete('/locations/:id/permanent', async (req, res) => {
+    const locID = req.params.id;
+    const { ownerID } = req.query;
+
+    try {
+        if (!ownerID) {
+            return res.status(400).json({ error: 'ownerID required for security' });
+        }
+
+        await pool.query('CALL sp_hard_delete_location(?, ?, @success, @msg)', [locID, ownerID]);
+        const [[outParams]] = await pool.query('SELECT @success as success, @msg as message');
+
+        if (outParams.success) {
+            res.json({ success: true, message: outParams.message });
+        } else {
+            res.status(400).json({ error: outParams.message });
+        }
+    } catch (e) {
+        console.error('Error in DELETE /locations/:id/permanent:', e);
         res.status(500).json({ error: e.message });
     }
 });

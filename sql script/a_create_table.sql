@@ -133,7 +133,7 @@ CREATE TABLE LOCATION (
     hotnessScore FLOAT DEFAULT 0,
     CONSTRAINT FK_Location_BusinessOwner FOREIGN KEY (ownerID) REFERENCES BUSINESS_OWNER(BOID),
     CONSTRAINT CHK_LocationType CHECK (locType IN ('HOTEL', 'RESTAURANT', 'VENUE')),
-    CONSTRAINT CHK_LocationPriceLev CHECK (priceLev IS NULL OR priceLev IN ('Bình dân', 'Trung bình', 'Cao cấp', 'Xa xỉ')),
+    CONSTRAINT CHK_LocationPriceLev CHECK (priceLev IS NULL OR priceLev IN ('BUDGET', 'MODERATE', 'UPSCALE', 'LUXURY')),
     CONSTRAINT CHK_LocationStatus CHECK (status IN ('ACTIVE', 'INACTIVE', 'PENDING')),
     CONSTRAINT CHK_LocationRating CHECK (ratingPoints >= 0 AND ratingPoints <= 5),
     CONSTRAINT CHK_LocationHotness CHECK (hotnessScore >= 0)
