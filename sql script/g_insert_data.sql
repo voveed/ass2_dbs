@@ -7,6 +7,22 @@ SET FOREIGN_KEY_CHECKS=0; -- Tắt kiểm tra khóa ngoại để chèn dữ li�
 ================================================================
 */
 
+TRUNCATE TABLE USER_PHONE;
+INSERT INTO USER_PHONE (userID, phoneNumber) VALUES
+(1, '0909123456'), (1, '0909111222'), -- Admin 1 có 2 số
+(2, '0912345670'), -- NHẬT MINH NÈ VY
+(3, '0922333444'), -- Owner 1
+(4, '0933444555'), -- Owner 2
+(5, '0944555666'), -- Owner 3
+(6, '0912345678'), -- Sun Group
+(7, '0988777666'), -- Vingroup
+(16, '0903333444'), -- Tourist Lộc
+(17, '0905555666'), -- Tourist Thông
+(18, '0907777888'), -- Tourist Vy
+(19, '0909999000'), -- Tourist Bích Phương
+(20, '0911222333'); -- Tourist Minh Tuấn
+
+
 -- 1. IMAGE (35 Dòng)
 TRUNCATE TABLE IMAGE;
 INSERT INTO IMAGE (imageID, URL, `caption`, imageType) VALUES
@@ -244,28 +260,28 @@ INSERT INTO BUSINESS_OWNER (BOID, taxCode, auStatus) VALUES
 -- Rank is DERIVED from totalSpent (auto-updated by trigger trg_after_tourist_spent_update_rank)
 -- Rank thresholds: Bronze (<5M), Silver (5-10M), Gold (10-20M), Platinum (20-50M), Diamond (>=50M)
 -- These values represent HISTORICAL spending - future completed transactions will trigger automatic rank updates
-TRUNCATE TABLE TOURIST;
-INSERT INTO TOURIST (touristID, nationality, legalID, loyaltypoints, totalSpent, `rank`, lastPreferenceUpdate) VALUES
-(16, 'Việt Nam', '079203001111', 850, 7500000, 'Silver', '2025-10-01'),      -- 7.5M → Silver (5M-10M range)
-(17, 'Việt Nam', '079203002222', 1500, 12000000, 'Gold', '2025-01-01'),      -- 12M → Gold (10M-20M range)
-(18, 'Việt Nam', '079203003333', 2500, 25000000, 'Platinum', '2025-10-01'),  -- 25M → Platinum (20M-50M range)
-(19, 'Việt Nam', '045199004444', 450, 4200000, 'Bronze', '2025-10-01'),      -- 4.2M → Bronze (<5M)
-(20, 'Việt Nam', '001195005555', 650, 6000000, 'Silver', '2025-10-01'),      -- 6M → Silver (5M-10M range)
-(21, 'Việt Nam', '068200006666', 200, 1800000, 'Bronze', '2025-10-01'),      -- 1.8M → Bronze (<5M)
-(22, 'Singapore', 'S1234567A', 3500, 35000000, 'Platinum', '2025-10-01'),    -- 35M → Platinum (20M-50M) - VIP customer
-(23, 'France', 'FR9876543B', 1200, 11000000, 'Gold', '2025-10-01'),          -- 11M → Gold (10M-20M range)
-(24, 'Việt Nam', '031202007777', 300, 2500000, 'Bronze', '2025-11-01'),      -- 2.5M → Bronze (<5M)
-(25, 'Việt Nam', '092204008888', 800, 7000000, 'Silver', '2025-11-01'),      -- 7M → Silver (5M-10M range)
-(26, 'USA', 'US123456789', 100, 500000, 'Bronze', '2025-10-01'),             -- 0.5M → Bronze (new user)
-(27, 'Japan', 'JP987654321', 150, 800000, 'Bronze', '2025-10-01'),           -- 0.8M → Bronze (new user)
-(28, 'Korea', 'KR881122-1', 120, 600000, 'Bronze', '2025-10-01'),            -- 0.6M → Bronze (new user)
-(29, 'Việt Nam', '001085001234', 2000, 15000000, 'Gold', '2025-10-01'),      -- 15M → Gold (10M-20M range)
-(30, 'Việt Nam', '022196004321', 400, 3500000, 'Bronze', '2025-10-01'),      -- 3.5M → Bronze (<5M)
-(31, 'Germany', 'DE456789123', 0, 0, 'Bronze', '2025-11-01'),                -- 0 → Bronze (new user)
-(32, 'Spain', 'ES789123456', 0, 0, 'Bronze', '2025-11-01'),                  -- 0 → Bronze (new user)
-(33, 'Việt Nam', '037198009876', 0, 0, 'Bronze', '2025-11-01'),              -- 0 → Bronze (new user)
-(34, 'Việt Nam', '046200001122', 0, 0, 'Bronze', '2025-11-01'),              -- 0 → Bronze (new user)
-(35, 'Việt Nam', '079199004455', 0, 0, 'Bronze', '2025-11-01');              -- 0 → Bronze (new user)
+TRUNCATE TABLE TOURIST; -- ĐÃ SỬA DỮ LIỆU HẠNG THÀNH SỐ
+INSERT INTO TOURIST (touristID, nationality, legalID, loyaltypoints, totalSpent, rankLevel, lastPreferenceUpdate) VALUES
+(16, 'Việt Nam', '079203001111', 850, 7500000, 1, '2025-10-01'),      -- Silver -> 1
+(17, 'Việt Nam', '079203002222', 1500, 12000000, 2, '2025-01-01'),     -- Gold -> 2
+(18, 'Việt Nam', '079203003333', 2500, 25000000, 3, '2025-10-01'),     -- Platinum -> 3
+(19, 'Việt Nam', '045199004444', 450, 4200000, 0, '2025-10-01'),       -- Bronze -> 0
+(20, 'Việt Nam', '001195005555', 650, 6000000, 1, '2025-10-01'),       -- Silver -> 1
+(21, 'Việt Nam', '068200006666', 200, 1800000, 0, '2025-10-01'),       -- Bronze -> 0
+(22, 'Singapore', 'S1234567A', 3500, 35000000, 3, '2025-10-01'),       -- Platinum -> 3
+(23, 'France', 'FR9876543B', 1200, 11000000, 2, '2025-10-01'),         -- Gold -> 2
+(24, 'Việt Nam', '031202007777', 300, 2500000, 0, '2025-11-01'),       -- Bronze -> 0
+(25, 'Việt Nam', '092204008888', 800, 7000000, 1, '2025-11-01'),       -- Silver -> 1
+(26, 'USA', 'US123456789', 100, 500000, 0, '2025-10-01'),              -- Bronze -> 0
+(27, 'Japan', 'JP987654321', 150, 800000, 0, '2025-10-01'),            -- Bronze -> 0
+(28, 'Korea', 'KR881122-1', 120, 600000, 0, '2025-10-01'),             -- Bronze -> 0
+(29, 'Việt Nam', '001085001234', 2000, 15000000, 2, '2025-10-01'),     -- Gold -> 2
+(30, 'Việt Nam', '022196004321', 400, 3500000, 0, '2025-10-01'),       -- Bronze -> 0
+(31, 'Germany', 'DE456789123', 0, 0, 0, '2025-11-01'),                 -- Bronze -> 0
+(32, 'Spain', 'ES789123456', 0, 0, 0, '2025-11-01'),                   -- Bronze -> 0
+(33, 'Việt Nam', '037198009876', 0, 0, 0, '2025-11-01'),               -- Bronze -> 0
+(34, 'Việt Nam', '046200001122', 0, 0, 0, '2025-11-01'),               -- Bronze -> 0
+(35, 'Việt Nam', '079199004455', 0, 0, 0, '2025-11-01');               -- Bronze -> 0
 
 
 -- 10. ROOMTYPE (12 Dòng)

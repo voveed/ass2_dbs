@@ -84,7 +84,7 @@
 //       });
 
 //       toast.success('Đánh giá của bạn đã được gửi thành công!');
-      
+
 //       // Reload location to get updated reviews
 //       if (params?.id) {
 //         loadLocationDetail(params.id);
@@ -146,7 +146,7 @@
 //           Quay lại danh sách
 //         </Button>
 //       </div>
-      
+
 //       {/* Hero Image */}
 //       <div className="h-96 relative">
 //         <ImageWithFallback
@@ -320,186 +320,187 @@ import { toast } from 'sonner@2.0.3';
 import { ScrollArea, ScrollBar } from '../components/ui/scroll-area';
 
 interface LocationDetailProps {
-  user: any;
+    user: any;
 }
 
 export function LocationDetail({ user }: LocationDetailProps) {
-  const [, params] = useRoute('/location/:id');
-  const [, setLocationRoute] = useLocation();
-  const [location, setLocation] = useState<any>(null);
-  const [products, setProducts] = useState<any[]>([]);
-  const [utilities, setUtilities] = useState<any[]>([]);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+    const [, params] = useRoute('/location/:id');
+    const [, setLocationRoute] = useLocation();
+    const [location, setLocation] = useState<any>(null);
+    const [products, setProducts] = useState<any[]>([]);
+    const [utilities, setUtilities] = useState<any[]>([]);
+    const [reviews, setReviews] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    if (params?.id) {
-      loadLocationDetail(params.id);
-    }
-  }, [params?.id]);
+    useEffect(() => {
+        if (params?.id) {
+            loadLocationDetail(params.id);
+        }
+    }, [params?.id]);
 
-  const loadLocationDetail = async (id: string) => {
-    setIsLoading(true);
-    try {
-      const data = await apiCall(`/locations/${id}`);
-      setLocation(data.location);
-      setProducts(data.products || []);
-      setUtilities(data.utilities || []);
-      setReviews(data.reviews || []);
-    } catch (error) {
-      console.error('Error loading location detail:', error);
-      toast.error('Không thể tải thông tin địa điểm');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const loadLocationDetail = async (id: string) => {
+        setIsLoading(true);
+        try {
+            const data = await apiCall(`/locations/${id}`);
+            setLocation(data.location);
+            setProducts(data.products || []);
+            setUtilities(data.utilities || []);
+            setReviews(data.reviews || []);
+        } catch (error) {
+            console.error('Error loading location detail:', error);
+            toast.error('Không thể tải thông tin địa điểm');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-  const getPriceLevelLabel = (level: string) => {
-    switch (level) {
-      case 'LUXURY': return 'Cao cấp';
-      case 'MODERATE': return 'Trung bình';
-      case 'AFFORDABLE': return 'Bình dân';
-      default: return level;
-    }
-  };
+    const getPriceLevelLabel = (level: string) => {
+        switch (level) {
+            case 'LUXURY': return 'Cao cấp';
+            case 'MODERATE': return 'Trung bình';
+            case 'AFFORDABLE': return 'Bình dân';
+            default: return level;
+        }
+    };
 
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  if (!location) return <div>Not Found</div>;
+    if (isLoading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    if (!location) return <div>Not Found</div>;
 
-  return (
-    <div className="min-h-screen bg-background pb-12">
-      {/* Header & Back Button */}
-      <div className="relative h-[400px]">
-        <ImageWithFallback src={location.imageUrl} alt={location.locName} className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
-        <Button 
-            variant="ghost" 
-            onClick={() => setLocationRoute('/locations')} 
-            className="absolute top-6 left-6 text-white hover:bg-black/20"
-        >
-            <ArrowLeft className="mr-2 h-5 w-5" /> Quay lại
-        </Button>
-        
-        <div className="absolute bottom-0 left-0 p-8 w-full">
-            <div className="container mx-auto">
-                <Badge className="mb-2 bg-primary text-primary-foreground">{location.locType}</Badge>
-                <h1 className="text-4xl font-bold text-white mb-2 shadow-sm">{location.locName}</h1>
-                <div className="flex items-center gap-4 text-white/90">
-                    <span className="flex items-center"><MapPin className="w-4 h-4 mr-1"/> {location.district}, {location.province}</span>
-                    <span className="flex items-center"><Star className="w-4 h-4 mr-1 text-yellow-400 fill-yellow-400"/> {location.avgRating?.toFixed(1)} ({location.reviewCount} đánh giá)</span>
-                    <span className="flex items-center"><DollarSign className="w-4 h-4 mr-1"/> {getPriceLevelLabel(location.priceLev)}</span>
+    return (
+        <div className="min-h-screen bg-background pb-12">
+            {/* Header & Back Button */}
+            <div className="relative h-[400px]">
+                <ImageWithFallback src={location.imageUrl} alt={location.locName} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+                <Button
+                    variant="ghost"
+                    onClick={() => setLocationRoute('/locations')}
+                    className="absolute top-6 left-6 text-white hover:bg-black/20"
+                >
+                    <ArrowLeft className="mr-2 h-5 w-5" /> Quay lại
+                </Button>
+
+                <div className="absolute bottom-0 left-0 p-8 w-full">
+                    <div className="container mx-auto">
+                        <Badge className="mb-2 bg-primary text-primary-foreground">{location.locType}</Badge>
+                        <h1 className="text-4xl font-bold text-white mb-2 shadow-sm">{location.locName}</h1>
+                        <div className="flex items-center gap-4 text-white/90">
+                            <span className="flex items-center"><MapPin className="w-4 h-4 mr-1" /> {location.district}, {location.province}</span>
+                            <span className="flex items-center"><Star className="w-4 h-4 mr-1 text-yellow-400 fill-yellow-400" /> {location.avgRating?.toFixed(1)} ({location.reviewCount} đánh giá)</span>
+                            <span className="flex items-center"><DollarSign className="w-4 h-4 mr-1" /> {getPriceLevelLabel(location.priceLev)}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-      </div>
 
-      <div className="container mx-auto px-4 mt-8 grid lg:grid-cols-3 gap-8">
-        {/* MAIN CONTENT */}
-        <div className="lg:col-span-2 space-y-8">
-            
-            {/* Description */}
-            <Card>
-                <CardContent className="pt-6">
-                    <h3 className="text-xl font-bold mb-4">Giới thiệu</h3>
-                    <p className="text-muted-foreground leading-relaxed">{location.description}</p>
-                </CardContent>
-            </Card>
+            <div className="container mx-auto px-4 mt-8 grid lg:grid-cols-3 gap-8">
+                {/* MAIN CONTENT */}
+                <div className="lg:col-span-2 space-y-8">
 
-            {/* UTILITIES with Images */}
-            {utilities.length > 0 && (
-                <Card>
-                    <CardHeader><CardTitle>Tiện ích & Dịch vụ</CardTitle></CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {utilities.map((uti: any, idx: number) => (
-                                <div key={idx} className="flex flex-col items-center text-center p-3 rounded-lg border border-border/50 bg-secondary/10">
-                                    {uti.image ? (
-                                        <ImageWithFallback src={uti.image} className="w-12 h-12 rounded-full object-cover mb-2" />
-                                    ) : (
-                                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2 text-primary">
-                                            <CheckCircle className="w-6 h-6" />
+                    {/* Description */}
+                    <Card>
+                        <CardContent className="pt-6">
+                            <h3 className="text-xl font-bold mb-4">Giới thiệu</h3>
+                            <p className="text-muted-foreground leading-relaxed">{location.description}</p>
+                        </CardContent>
+                    </Card>
+
+                    {/* UTILITIES with Images */}
+                    {utilities.length > 0 && (
+                        <Card>
+                            <CardHeader><CardTitle>Tiện ích & Dịch vụ</CardTitle></CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    {utilities.map((uti: any, idx: number) => (
+                                        <div key={idx} className="flex flex-col items-center text-center p-3 rounded-lg border border-border/50 bg-secondary/10">
+                                            {uti.image ? (
+                                                <ImageWithFallback src={uti.image} className="w-12 h-12 rounded-full object-cover mb-2" />
+                                            ) : (
+                                                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2 text-primary">
+                                                    <CheckCircle className="w-6 h-6" />
+                                                </div>
+                                            )}
+                                            <span className="font-medium text-sm">{uti.uName}</span>
+                                            {uti.UDescription && <span className="text-xs text-muted-foreground mt-1">{uti.UDescription}</span>}
                                         </div>
-                                    )}
-                                    <span className="font-medium text-sm">{uti.uName}</span>
-                                    {uti.UDescription && <span className="text-xs text-muted-foreground mt-1">{uti.UDescription}</span>}
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+                            </CardContent>
+                        </Card>
+                    )}
 
-            {/* PRODUCTS LIST (Room/Table/Ticket) */}
-            {products.length > 0 && (
-                <div className="space-y-4">
-                    <h3 className="text-2xl font-bold flex items-center gap-2">
-                        {location.locType === 'HOTEL' ? 'Các loại phòng' : location.locType === 'RESTAURANT' ? 'Thực đơn & Bàn' : 'Vé tham quan'}
-                    </h3>
-                    {products.map((prod: any) => (
-                        <Card key={prod.productID} className="overflow-hidden hover:border-primary/50 transition-all">
-                            <div className="flex flex-col md:flex-row">
-                                {/* Product Image */}
-                                <div className="md:w-1/3 h-48 md:h-auto relative">
-                                    <ImageWithFallback 
-                                        src={prod.images && prod.images.length > 0 ? prod.images[0] : location.imageUrl} 
-                                        className="w-full h-full object-cover"
-                                    />
-                                </div>
-                                {/* Product Info */}
-                                <div className="flex-1 p-6 flex flex-col justify-between">
-                                    <div>
-                                        <div className="flex justify-between items-start">
-                                            <h4 className="text-lg font-bold text-primary">{prod.productName}</h4>
-                                            <div className="text-right">
-                                                <span className="text-xl font-bold">{new Intl.NumberFormat('vi-VN', {style:'currency', currency:'VND'}).format(prod.basePrice)}</span>
-                                                <p className="text-xs text-muted-foreground">/ {prod.pricingUnit}</p>
+                    {/* PRODUCTS LIST (Room/Table/Ticket) */}
+                    {products.length > 0 && (
+                        <div className="space-y-4">
+                            <h3 className="text-2xl font-bold flex items-center gap-2">
+                                {location.locType === 'HOTEL' ? 'Các loại phòng' : location.locType === 'RESTAURANT' ? 'Thực đơn & Bàn' : 'Vé tham quan'}
+                            </h3>
+                            {products.map((prod: any) => (
+                                <Card key={prod.productID} className="overflow-hidden hover:border-primary/50 transition-all">
+                                    <div className="flex flex-col md:flex-row">
+                                        {/* Product Image */}
+                                        <div className="md:w-1/3 h-48 md:h-auto relative">
+                                            <ImageWithFallback
+                                                src={prod.images && prod.images.length > 0 ? prod.images[0] : location.imageUrl}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                        {/* Product Info */}
+                                        <div className="flex-1 p-6 flex flex-col justify-between">
+                                            <div>
+                                                <div className="flex justify-between items-start">
+                                                    <h4 className="text-lg font-bold text-primary">{prod.productName}</h4>
+                                                    <div className="text-right">
+                                                        <span className="text-xl font-bold">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(prod.basePrice)}</span>
+                                                        <p className="text-xs text-muted-foreground">/ {prod.pricingUnit}</p>
+                                                    </div>
+                                                </div>
+                                                <p className="text-sm text-muted-foreground mt-2 mb-4">{prod.description}</p>
+
+                                                {/* Subtype Attributes */}
+                                                <div className="flex flex-wrap gap-2">
+                                                    {prod.roomCapacity && <Badge variant="outline">Sức chứa: {prod.roomCapacity} người</Badge>}
+                                                    {prod.tableCapacity && <Badge variant="outline">Bàn {prod.tableCapacity} ghế</Badge>}
+                                                    {prod.tableView && <Badge variant="secondary">{prod.tableView}</Badge>}
+                                                    {prod.ticketAudience && <Badge variant="outline">Dành cho: {prod.ticketAudience}</Badge>}
+                                                </div>
                                             </div>
                                         </div>
-                                        <p className="text-sm text-muted-foreground mt-2 mb-4">{prod.description}</p>
-                                        
-                                        {/* Subtype Attributes */}
-                                        <div className="flex flex-wrap gap-2">
-                                            {prod.roomCapacity && <Badge variant="outline">Sức chứa: {prod.roomCapacity} người</Badge>}
-                                            {prod.tableCapacity && <Badge variant="outline">Bàn {prod.tableCapacity} ghế</Badge>}
-                                            {prod.tableView && <Badge variant="secondary">{prod.tableView}</Badge>}
-                                            {prod.ticketAudience && <Badge variant="outline">Dành cho: {prod.ticketAudience}</Badge>}
-                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                        </Card>
-                    ))}
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Reviews Section */}
+                    <Card>
+                        <CardContent className="pt-6">
+                            <ReviewSection
+                                reviews={reviews}
+                                locationId={location.locId}
+                                user={user}
+                                onSubmitReview={async (data) => {
+                                    await apiCall('/reviews', { method: 'POST', body: JSON.stringify(data) });
+                                    toast.success('Đã gửi đánh giá!');
+                                    loadLocationDetail(location.locId);
+                                }}
+                                onUpdateSuccess={() => loadLocationDetail(location.locId)}
+                            />
+                        </CardContent>
+                    </Card>
                 </div>
-            )}
 
-            {/* Reviews Section */}
-            <Card>
-                <CardContent className="pt-6">
-                    <ReviewSection
-                        reviews={reviews}
-                        locationId={location.locId}
-                        user={user}
-                        onSubmitReview={async (data) => {
-                            await apiCall('/reviews', {method:'POST', body:JSON.stringify(data)});
-                            toast.success('Đã gửi đánh giá!');
-                            loadLocationDetail(location.locId);
-                        }}
-                    />
-                </CardContent>
-            </Card>
-        </div>
-
-        {/* SIDEBAR - BOOKING FORM */}
-        <div className="lg:col-span-1">
-            <div className="sticky top-24">
-                <BookingForm 
-                    location={location} 
-                    products={products} 
-                    user={user} 
-                />
+                {/* SIDEBAR - BOOKING FORM */}
+                <div className="lg:col-span-1">
+                    <div className="sticky top-24">
+                        <BookingForm
+                            location={location}
+                            products={products}
+                            user={user}
+                        />
+                    </div>
+                </div>
             </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 }

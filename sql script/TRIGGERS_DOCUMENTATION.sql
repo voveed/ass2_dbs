@@ -1,0 +1,111 @@
+-- ================================================================
+-- RESERVATION: Bảng đơn đặt chỗ
+-- ================================================================
+-- PRIMARY KEY: reservationID (AUTO_INCREMENT)
+-- FOREIGN KEYS:
+--   - touristID -> TOURIST(touristID)
+--   - voucherID -> VOUCHER(voucherID) ON DELETE SET NULL
+-- CHECK CONSTRAINTS:
+--   - CHK_ReservationStatus: status ∈ {'PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED'}
+-- COMPUTED COLUMN:
+--   - paymentStatus: CASE WHEN totalPaid <= 0 THEN 'Unpaid'
+--                         WHEN totalPaid >= (totalAmount - totalDiscount) THEN 'Paid'
+--                         ELSE 'Partial' END (STORED)
+-- TRIGGERS LIÊN QUAN:
+--   - trg_before_reservation_status_update: Kiểm tra vòng đời status hợp lệ (i_missing_constraints_triggers.sql)
+--     Ngăn chặn: COMPLETED → CANCELLED, CANCELLED → bất kỳ, PENDING → COMPLETED (phải qua CONFIRMED)
+-- RÀNG BUỘC NGỮ NGHĨA #4: Vòng đời status (PENDING → CONFIRMED → COMPLETED)
+-- MỤC ĐÍCH: Lưu thông tin đặt chỗ của tourist, quản lý trạng thái và thanh toán
+-- ================================================================
+
+-- ================================================================
+-- FEEDBACK: Bảng phản hồi (cha của REVIEW và COMMENT)
+-- ================================================================
+-- PRIMARY KEY: fbID (AUTO_INCREMENT)
+-- FOREIGN KEYS:
+--   - userID -> USER_ACCOUNT(userID)
+--   - locID -> LOCATION(locID)
+-- CHECK CONSTRAINTS:
+--   - CHK_FeedbackType: feedbackType ∈ {'REVIEW', 'COMMENT'}
+--   - CHK_LikeCount: likeCount >= 0
+-- UNIQUE CONSTRAINT (Implicit):
+--   - Một user chỉ có 1 feedback type REVIEW cho 1 location
+-- TRIGGERS LIÊN QUAN:
+--   - trg_before_review_insert_check_completed: Kiểm tra quyền viết review (b_trigger_func_proc.sql)
+--     + Chỉ TOURIST mới được viết review
+--     + Phải có >= 1 reservation COMPLETED tại location
+--     + Một tourist chỉ viết 1 review cho 1 location
+-- RÀNG BUỘC NGỮ NGHĨA #1, #2, #5: Duy nhất review + Quyền review + Vai trò
+-- MỤC ĐÍCH: Lưu tất cả feedback, kế thừa thành REVIEW và COMMENT
+-- ================================================================
+
+-- ================================================================
+-- REVIEW: Bảng đánh giá (kế thừa FEEDBACK)
+-- ================================================================
+-- PRIMARY KEY: reviewID (cũng là FK to FEEDBACK)
+-- FOREIGN KEY:
+--   - reviewID -> FEEDBACK(fbID) ON DELETE CASCADE
+-- CHECK CONSTRAINTS:
+--   - CHK_RatingRange: ratingPoints BETWEEN 1 AND 5
+-- TRIGGERS LIÊN QUAN:
+--   - trg_before_review_insert_check_completed: Validate quyền tạo review (b_trigger_func_proc.sql)
+--   - trg_after_review_insert: Auto update LOCATION.ratingPoints (b_trigger_func_proc.sql)
+--   - trg_after_review_update: Auto update LOCATION.ratingPoints (b_trigger_func_proc.sql)
+--   - trg_before_review_delete_for_rating: Lưu rating trước khi xóa (b_trigger_func_proc.sql)
+--   - trg_after_review_delete: Auto update LOCATION.ratingPoints (b_trigger_func_proc.sql)
+-- STORED PROCEDURES:
+--   - sp_update_review: Cập nhật review (rating, content)
+-- RÀNG BUỘC NGỮ NGHĨA #6: ratingPoints trong khoảng 1-5
+-- MỤC ĐÍCH: Lưu đánh giá với điểm rating, tự động cập nhật rating của location
+-- ================================================================
+
+-- ================================================================
+-- BOOKING_DETAILS: Bảng chi tiết đặt chỗ
+-- ================================================================
+-- PRIMARY KEY: (reservationID, itemID) - Composite
+-- FOREIGN KEYS:
+--   - reservationID -> RESERVATION(reservationID) ON DELETE CASCADE
+--   - productID -> PRODUCT(productID)
+-- CHECK CONSTRAINTS:
+--   - CHK_BookingDates: checkoutDateTime > checkingDateTime
+-- TRIGGERS LIÊN QUAN:
+--   - trg_after_booking_details_insert: Auto update RESERVATION.totalAmount, numOfItems (b_trigger_func_proc.sql)
+--   - trg_after_booking_details_update: Auto update RESERVATION.totalAmount (b_trigger_func_proc.sql)
+--   - trg_after_booking_details_delete: Auto update RESERVATION.totalAmount, numOfItems (b_trigger_func_proc.sql)
+-- FUNCTIONS LIÊN QUAN:
+--   - fn_calculate_reservation_total: Tính tổng tiền gốc của reservation
+-- RÀNG BUỘC NGỮ NGHĨA #3: checkoutDateTime > checkingDateTime
+-- MỤC ĐÍCH: Lưu từng item trong reservation (phòng, bàn, vé...), tự động tính tổng tiền
+-- ================================================================
+
+-- ================================================================
+-- TRANSACTION: Bảng giao dịch thanh toán
+-- ================================================================
+-- PRIMARY KEY: transactionID (AUTO_INCREMENT)
+-- UNIQUE: gatewayTransactionID
+-- FOREIGN KEY:
+--   - reservationID -> RESERVATION(reservationID)
+-- CHECK CONSTRAINTS:
+--   - CHK_PaidAmount: paidAmount >= 0
+-- TRIGGERS LIÊN QUAN:
+--   - trg_after_transaction_completed: Auto update RESERVATION.totalPaid, TOURIST.totalSpent (b_trigger_func_proc.sql)
+--     + Khi transaction status = 'COMPLETED': cộng vào totalPaid và totalSpent
+-- MỤC ĐÍCH: Lưu lịch sử thanh toán, tự động cập nhật số tiền đã trả và tổng chi tiêu
+-- ================================================================
+
+-- ================================================================
+-- LIKE (FB_LIKE): Bảng thích feedback
+-- ================================================================
+-- PRIMARY KEY: (likeOrDislike, userID, fbID) - Composite
+-- FOREIGN KEYS:
+--   - userID -> USER_ACCOUNT(userID) ON DELETE CASCADE
+--   - fbID -> FEEDBACK(fbID) ON DELETE CASCADE
+-- CHECK CONSTRAINTS:
+--   - CHK_LikeOrDislike: likeOrDislike ∈ {'LIKE', 'DISLIKE'}
+-- TRIGGERS LIÊN QUAN:
+--   - trg_after_like_insert: Auto increment FEEDBACK.likeCount (b_trigger_func_proc.sql)
+--   - trg_after_like_delete: Auto decrement FEEDBACK.likeCount (b_trigger_func_proc.sql)
+--   - trg_after_like_update_count: Update likeCount when switching LIKE/DISLIKE (b_trigger_func_proc.sql)
+--   - trg_after_dislike_update_count: Update likeCount when switching LIKE/DISLIKE (b_trigger_func_proc.sql)
+-- MỤC ĐÍCH: Lưu thích/không thích feedback, tự động cập nhật số lượt thích
+-- ================================================================

@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-type TabType = 'info' | 'images' | 'utilities' | 'preferences' | 'products';
+type TabType = 'info' | 'images' | 'utilities' | 'preferences' | 'products' | 'opening_hours';
+
+interface OpeningHour {
+    dayOfWeek: number;
+    openTime: string;
+    closeTime: string;
+}
 
 interface LocationImage {
     imageID: number;
@@ -44,6 +50,7 @@ export default function LocationDetailPage() {
     const [preferences, setPreferences] = useState<Preference[]>([]);
     const [allPreferences, setAllPreferences] = useState<Preference[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
+    const [openingHours, setOpeningHours] = useState<OpeningHour[]>([]);
     const [loading, setLoading] = useState(false);
 
     // Edit Location Modal
@@ -75,6 +82,12 @@ export default function LocationDetailPage() {
     const [productUnit, setProductUnit] = useState('');
     const [productDesc, setProductDesc] = useState('');
 
+    // Opening Hour Modal
+    const [showAddOpeningHourModal, setShowAddOpeningHourModal] = useState(false);
+    const [ohDay, setOhDay] = useState(0);
+    const [ohOpen, setOhOpen] = useState('');
+    const [ohClose, setOhClose] = useState('');
+
     useEffect(() => {
         if (locID) {
             fetchLocationDetails();
@@ -85,6 +98,7 @@ export default function LocationDetailPage() {
                 fetchAllPreferences();
             }
             else if (activeTab === 'products') fetchProducts();
+            else if (activeTab === 'opening_hours') fetchOpeningHours();
         }
     }, [locID, activeTab]);
 
@@ -160,6 +174,55 @@ export default function LocationDetailPage() {
             alert(err.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchOpeningHours = async () => {
+        setLoading(true);
+        try {
+            const response = await fetch(`http://localhost:3001/make-server-aef03c12/locations/${locID}/opening-hours`);
+            const data = await response.json();
+            if (data.success) setOpeningHours(data.openingHours || []);
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAddOpeningHour = async () => {
+        if (!ohOpen || !ohClose) return alert('Vui lòng nhập giờ mở/đóng cửa');
+        try {
+            const response = await fetch(`http://localhost:3001/make-server-aef03c12/locations/${locID}/opening-hours`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dayOfWeek: ohDay, openTime: ohOpen, closeTime: ohClose })
+            });
+            const data = await response.json();
+            if (data.success) {
+                setShowAddOpeningHourModal(false);
+                setOhOpen('');
+                setOhClose('');
+                fetchOpeningHours();
+            } else alert(data.error);
+        } catch (err: any) {
+            alert(err.message);
+        }
+    };
+
+    const handleDeleteOpeningHour = async (day: number, open: string, close: string) => {
+        if (!confirm('Xóa khung giờ này?')) return;
+        try {
+            const response = await fetch(`http://localhost:3001/make-server-aef03c12/locations/${locID}/opening-hours`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dayOfWeek: day, openTime: open, closeTime: close })
+            });
+            const data = await response.json();
+            if (data.success) fetchOpeningHours();
+            else alert(data.error);
+        } catch (err: any) {
+            alert(err.message);
         }
     };
 
@@ -391,7 +454,7 @@ export default function LocationDetailPage() {
             </div>
 
             <div style={styles.tabs}>
-                {(['info', 'images', 'utilities', 'preferences', 'products'] as TabType[]).map(tab => (
+                {(['info', 'images', 'utilities', 'preferences', 'products', 'opening_hours'] as TabType[]).map(tab => (
                     <button
                         key={tab}
                         style={{ ...styles.tab, ...(activeTab === tab ? styles.activeTab : {}) }}
@@ -402,6 +465,7 @@ export default function LocationDetailPage() {
                         {tab === 'utilities' && `🛠️ Tiện ích (${utilities.length})`}
                         {tab === 'preferences' && `🏷️ Tags (${preferences.length})`}
                         {tab === 'products' && `📦 Products (${products.length})`}
+                        {tab === 'opening_hours' && `⏰ Giờ mở cửa`}
                     </button>
                 ))}
             </div>
@@ -529,6 +593,29 @@ export default function LocationDetailPage() {
                         )}
                     </div>
                 )}
+
+                {activeTab === 'opening_hours' && (
+                    <div>
+                        <button onClick={() => setShowAddOpeningHourModal(true)} style={styles.addButton}>+ Thêm giờ mở cửa</button>
+                        {loading ? <div style={styles.loading}>Đang tải...</div> : (
+                            <div style={styles.utilityList}>
+                                {openingHours.map((oh, idx) => (
+                                    <div key={idx} style={styles.utilityCard}>
+                                        <div style={styles.utilityHeader}>
+                                            <div>
+                                                <div style={styles.utilityName}>
+                                                    {['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'][oh.dayOfWeek]}
+                                                </div>
+                                                <div style={styles.utilityType}>{oh.openTime} - {oh.closeTime}</div>
+                                            </div>
+                                            <button onClick={() => handleDeleteOpeningHour(oh.dayOfWeek, oh.openTime, oh.closeTime)} style={styles.deleteButton}>🗑️ Xóa</button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Edit Location Modal */}
@@ -644,6 +731,26 @@ export default function LocationDetailPage() {
                         <div style={styles.modalButtons}>
                             <button onClick={handleUpdateProduct} style={styles.saveButton}>Lưu</button>
                             <button onClick={() => setShowEditProductModal(false)} style={styles.cancelButton}>Hủy</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Opening Hour Modal */}
+            {showAddOpeningHourModal && (
+                <div style={styles.modal}>
+                    <div style={styles.modalContent}>
+                        <h2>Thêm Giờ Mở Cửa</h2>
+                        <select value={ohDay} onChange={e => setOhDay(parseInt(e.target.value))} style={styles.input}>
+                            {['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'].map((d, i) => (
+                                <option key={i} value={i}>{d}</option>
+                            ))}
+                        </select>
+                        <input type="time" value={ohOpen} onChange={e => setOhOpen(e.target.value)} style={styles.input} />
+                        <input type="time" value={ohClose} onChange={e => setOhClose(e.target.value)} style={styles.input} />
+                        <div style={styles.modalButtons}>
+                            <button onClick={handleAddOpeningHour} style={styles.saveButton}>Thêm</button>
+                            <button onClick={() => setShowAddOpeningHourModal(false)} style={styles.cancelButton}>Hủy</button>
                         </div>
                     </div>
                 </div>

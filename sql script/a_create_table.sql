@@ -11,7 +11,15 @@ CREATE TABLE USER_ACCOUNT (
     DOB DATE,
     role VARCHAR(50) NOT NULL,
     CONSTRAINT CHK_UserRole CHECK (role IN ('ADMIN', 'TOURIST', 'OWNER')),
-    CONSTRAINT CHK_EmailFormat CHECK (mail REGEXP '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$')
+    CONSTRAINT CHK_EmailFormat CHECK (mail REGEXP '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$') 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE USER_PHONE ( 
+    userID INT NOT NULL,
+    phoneNumber VARCHAR(15) NOT NULL,
+    PRIMARY KEY (userID, phoneNumber),
+    CONSTRAINT FK_UserPhone_User FOREIGN KEY (userID) REFERENCES USER_ACCOUNT(userID) ON DELETE CASCADE,
+    CONSTRAINT CHK_PhoneFormat CHECK (phoneNumber REGEXP '^[0-9]{10,15}$')
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IMAGE (
@@ -59,9 +67,10 @@ CREATE TABLE VOUCHER (
     remaining_slots INT AS (slots - used_slots) STORED,
     -- Note: status removed as computed column (CURDATE() not allowed in MySQL generated columns)
     -- Use VIEW or query: CASE WHEN CURDATE() < startDate THEN 'UPCOMING' WHEN CURDATE() > expDate THEN 'EXPIRED' WHEN remaining_slots <= 0 THEN 'SOLDOUT' ELSE 'ACTIVE' END
-    CONSTRAINT CHK_VoucherDates CHECK (expDate > startDate),
+    CONSTRAINT CHK_VoucherDates CHECK (expDate >= startDate),
     CONSTRAINT CHK_VoucherDiscount CHECK (discountPercentage > 0 AND discountPercentage <= 1),
     CONSTRAINT CHK_VoucherSlots CHECK (slots > 0),
+    CONSTRAINT CHK_LimitVal CHECK (limitVal >= 0), -- THÊM RÀNG BUỘC LỚN HƠN 0
     CONSTRAINT CHK_VoucherRank CHECK (rankRequirement >= 0 AND rankRequirement <= 4)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -86,10 +95,12 @@ CREATE TABLE TOURIST (
     legalID VARCHAR(100) NOT NULL,
     loyaltypoints INT DEFAULT 0,
     totalSpent DECIMAL(18, 2) DEFAULT 0,
-    `rank` VARCHAR(50) DEFAULT 'Bronze',
+    -- Quy ước: 0=Bronze, 1=Silver, 2=Gold, 3=Platinum, 4=Diamond
+    rankLevel INT DEFAULT 0, 
+    -- `rank` VARCHAR(50) DEFAULT 'Bronze',
     lastPreferenceUpdate DATETIME DEFAULT NOW(),
     CONSTRAINT FK_Tourist_User FOREIGN KEY (touristID) REFERENCES USER_ACCOUNT(userID) ON DELETE CASCADE,
-    CONSTRAINT CHK_TouristRank CHECK (`rank` IN ('Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond')),
+    CONSTRAINT CHK_TouristRank CHECK (rankLevel BETWEEN 0 AND 4),
     CONSTRAINT CHK_TouristLoyaltyPoints CHECK (loyaltypoints >= 0),
     CONSTRAINT CHK_TouristTotalSpent CHECK (totalSpent >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -123,7 +134,7 @@ CREATE TABLE LOCATION (
     ward VARCHAR(100),
     district VARCHAR(100) NOT NULL,
     province VARCHAR(100) NOT NULL,
-    priceLev VARCHAR(50),
+    priceLev VARCHAR(50) NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
     description TEXT,
     locName VARCHAR(255) NOT NULL UNIQUE,

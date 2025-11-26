@@ -20,7 +20,7 @@ app.use(express.json());
 const dbConfig = {
     host: 'localhost',
     user: 'root',
-    password: 'ss',
+    password: 'devkee27112005',
     database: 'VIVUVIET',
     waitForConnections: true,
     connectionLimit: 10,
@@ -205,14 +205,16 @@ apiRouter.delete('/locations/:id', async (req, res) => {
     }
 });
 
-
-// POST /locations/:id/restore - Restore inactive location
 apiRouter.post('/locations/:id/restore', async (req, res) => {
-    const { id } = req.params;
+    const locID = req.params.id;
     const { ownerID } = req.body;
 
     try {
-        await pool.query('CALL sp_restore_location(?, ?, @success, @msg)', [id, ownerID]);
+        if (!ownerID) {
+            return res.status(400).json({ error: 'ownerID required for security' });
+        }
+
+        await pool.query('CALL sp_restore_location(?, ?, @success, @msg)', [locID, ownerID]);
         const [[outParams]] = await pool.query('SELECT @success as success, @msg as message');
 
         if (outParams.success) {
@@ -222,6 +224,29 @@ apiRouter.post('/locations/:id/restore', async (req, res) => {
         }
     } catch (e) {
         console.error('Error in POST /locations/:id/restore:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+apiRouter.delete('/locations/:id/permanent', async (req, res) => {
+    const locID = req.params.id;
+    const { ownerID } = req.query;
+
+    try {
+        if (!ownerID) {
+            return res.status(400).json({ error: 'ownerID required for security' });
+        }
+
+        await pool.query('CALL sp_hard_delete_location(?, ?, @success, @msg)', [locID, ownerID]);
+        const [[outParams]] = await pool.query('SELECT @success as success, @msg as message');
+
+        if (outParams.success) {
+            res.json({ success: true, message: outParams.message });
+        } else {
+            res.status(400).json({ error: outParams.message });
+        }
+    } catch (e) {
+        console.error('Error in DELETE /locations/:id/permanent:', e);
         res.status(500).json({ error: e.message });
     }
 });
@@ -252,58 +277,7 @@ apiRouter.get('/owner/locations', async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
-apiRouter.get('/locations/:id/opening-hours', async (req, res) => {
-    const { id } = req.params;
-    try {
-        const [results] = await pool.query('CALL sp_get_location_opening_hours(?)', [id]);
-        res.json({ success: true, openingHours: results[0] });
-    } catch (error) {
-        console.error('Error fetching opening hours:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-apiRouter.post('/locations/:id/opening-hours', async (req, res) => {
-    const { id } = req.params;
-    const { dayOfWeek, openTime, closeTime } = req.body;
 
-    try {
-        await pool.query(
-            'CALL sp_add_location_opening_hour(?, ?, ?, ?, @success, @msg)',
-            [id, dayOfWeek, openTime, closeTime]
-        );
-        const [[outParams]] = await pool.query('SELECT @success as success, @msg as message');
-
-        if (outParams.success) {
-            res.status(201).json({ success: true, message: outParams.message });
-        } else {
-            res.status(400).json({ error: outParams.message });
-        }
-    } catch (error) {
-        console.error('Error adding opening hour:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-apiRouter.delete('/locations/:id/opening-hours', async (req, res) => {
-    const { id } = req.params;
-    const { dayOfWeek, openTime, closeTime } = req.body;
-
-    try {
-        await pool.query(
-            'CALL sp_delete_location_opening_hour(?, ?, ?, ?, @success, @msg)',
-            [id, dayOfWeek, openTime, closeTime]
-        );
-        const [[outParams]] = await pool.query('SELECT @success as success, @msg as message');
-
-        if (outParams.success) {
-            res.json({ success: true, message: outParams.message });
-        } else {
-            res.status(400).json({ error: outParams.message });
-        }
-    } catch (error) {
-        console.error('Error deleting opening hour:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
 // ==================================================================
 // OWNER STATISTICS
 // ==================================================================
@@ -337,17 +311,6 @@ apiRouter.get('/owner/notifications', async (req, res) => {
 
         const [notifications] = await pool.query(
             `SELECT f.fbID, f.fbDateTime, f.feedbackType, f.likeCount, l.locID, l.locName,
-                    u.userID, u.fullName as userName, u.mail as userEmail,
-                    CASE WHEN f.feedbackType = 'REVIEW' THEN r.ratingPoints ELSE NULL END as rating,
-                    CASE WHEN f.feedbackType = 'REVIEW' THEN NULL
-                         WHEN f.feedbackType = 'COMMENT' THEN c.content ELSE NULL END as content
-             FROM FEEDBACK f
-             INNER JOIN LOCATION l ON f.locID = l.locID
-             INNER JOIN USER_ACCOUNT u ON f.userID = u.userID
-             LEFT JOIN REVIEW r ON f.fbID = r.reviewID
-             LEFT JOIN COMMENT c ON f.fbID = c.commentID
-             WHERE l.ownerID = ?
-             ORDER BY f.fbDateTime DESC
              LIMIT 100`,
             [ownerID]
         );
@@ -523,74 +486,12 @@ apiRouter.put('/utilities/:utilityID', async (req, res) => {
 apiRouter.delete('/locations/:locID/utilities/:utilityID', async (req, res) => {
     const { locID, utilityID } = req.params;
 
-    try {
-        await pool.query(`DELETE FROM LOC_HAS_UTILITY WHERE locID = ? AND utility = ?`, [locID, utilityID]);
-        res.json({ success: true, message: 'Xóa tiện ích thành công' });
+    res.status(400).json({ error: outParams.message });
+}
     } catch (error) {
-        console.error('Error removing utility:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// ==================================================================
-// LOCATION PREFERENCES - NEW
-// ==================================================================
-apiRouter.get('/preferences', async (req, res) => {
-    try {
-        const [results] = await pool.query('CALL sp_get_all_preferences()');
-        res.json({ success: true, preferences: results[0] });
-    } catch (error) {
-        console.error('Error fetching all preferences:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-apiRouter.get('/locations/:locID/preferences', async (req, res) => {
-    const { locID } = req.params;
-    try {
-        const [results] = await pool.query('CALL sp_get_location_preferences(?)', [locID]);
-        res.json({ success: true, preferences: results[0] });
-    } catch (error) {
-        console.error('Error fetching location preferences:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-apiRouter.post('/locations/:locID/preferences', async (req, res) => {
-    const { locID } = req.params;
-    const { prefID } = req.body;
-
-    try {
-        await pool.query('CALL sp_add_location_preference(?, ?, @success, @msg)', [locID, prefID]);
-        const [[outParams]] = await pool.query('SELECT @success as success, @msg as message');
-
-        if (outParams.success) {
-            res.status(201).json({ success: true, message: outParams.message });
-        } else {
-            res.status(400).json({ error: outParams.message });
-        }
-    } catch (error) {
-        console.error('Error adding location preference:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-apiRouter.delete('/locations/:locID/preferences/:prefID', async (req, res) => {
-    const { locID, prefID } = req.params;
-
-    try {
-        await pool.query('CALL sp_remove_location_preference(?, ?, @success, @msg)', [locID, prefID]);
-        const [[outParams]] = await pool.query('SELECT @success as success, @msg as message');
-
-        if (outParams.success) {
-            res.json({ success: true, message: outParams.message });
-        } else {
-            res.status(400).json({ error: outParams.message });
-        }
-    } catch (error) {
-        console.error('Error removing location preference:', error);
-        res.status(500).json({ error: error.message });
-    }
+    console.error('Error removing location preference:', error);
+    res.status(500).json({ error: error.message });
+}
 });
 
 // ==================================================================
@@ -674,6 +575,80 @@ apiRouter.delete('/locations/:locID/products/:productID', async (req, res) => {
 });
 
 // ==================================================================
+// LOCATION OPENING HOURS - NEW
+// ==================================================================
+apiRouter.get('/locations/:id/opening-hours', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [results] = await pool.query('CALL sp_get_location_opening_hours(?)', [id]);
+        res.json({ success: true, openingHours: results[0] });
+    } catch (error) {
+        console.error('Error fetching opening hours:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+apiRouter.post('/locations/:id/opening-hours', async (req, res) => {
+    const { id } = req.params;
+    const { dayOfWeek, openTime, closeTime } = req.body;
+
+    try {
+        await pool.query(
+            'CALL sp_add_location_opening_hour(?, ?, ?, ?, @success, @msg)',
+            [id, dayOfWeek, openTime, closeTime]
+        );
+        const [[outParams]] = await pool.query('SELECT @success as success, @msg as message');
+
+        if (outParams.success) {
+            res.status(201).json({ success: true, message: outParams.message });
+        } else {
+            res.status(400).json({ error: outParams.message });
+        }
+    } catch (error) {
+        console.error('Error adding opening hour:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+apiRouter.delete('/locations/:id/opening-hours', async (req, res) => {
+    const { id } = req.params;
+    const { dayOfWeek, openTime, closeTime } = req.body;
+
+    try {
+        await pool.query(
+            'CALL sp_delete_location_opening_hour(?, ?, ?, ?, @success, @msg)',
+            [id, dayOfWeek, openTime, closeTime]
+        );
+        const [[outParams]] = await pool.query('SELECT @success as success, @msg as message');
+
+        if (outParams.success) {
+            res.json({ success: true, message: outParams.message });
+        } else {
+            res.status(400).json({ error: outParams.message });
+        }
+    } catch (error) {
+        console.error('Error deleting opening hour:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ==================================================================
+// REVIEWS UPDATE
+// ==================================================================
+apiRouter.put('/reviews/:reviewID', async (req, res) => {
+    const { reviewID } = req.params;
+    const { userID, rating, content } = req.body;
+
+    try {
+        await pool.query('CALL sp_update_review(?, ?, ?, ?)', [reviewID, userID, rating, content]);
+        res.json({ success: true, message: 'Cập nhật đánh giá thành công' });
+    } catch (error) {
+        console.error('Error updating review:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ==================================================================
 // MOUNT ROUTER & START SERVER
 // ==================================================================
 app.use('/make-server-aef03c12', apiRouter);
@@ -706,5 +681,11 @@ app.listen(port, () => {
     console.log('   POST   /locations/:locID/products (CALLS sp_create_and_add_product)');
     console.log('   PUT    /products/:productID (CALLS sp_update_product)');
     console.log('   DELETE /locations/:locID/products/:productID (CALLS sp_remove_location_preference)');
+    console.log('\n🕐 Location Opening Hours (NEW):');
+    console.log('   GET    /locations/:id/opening-hours (CALLS sp_get_location_opening_hours)');
+    console.log('   POST   /locations/:id/opening-hours (CALLS sp_add_location_opening_hour)');
+    console.log('   DELETE /locations/:id/opening-hours (CALLS sp_delete_location_opening_hour)');
+    console.log('\n✏️  Reviews Update (NEW):');
+    console.log('   PUT    /reviews/:reviewID (CALLS sp_update_review)');
     console.log('========================================\n');
 });

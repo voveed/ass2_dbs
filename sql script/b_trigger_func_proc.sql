@@ -76,16 +76,16 @@ DROP FUNCTION IF EXISTS fn_get_tourist_rank$$
 CREATE FUNCTION fn_get_tourist_rank(
     p_touristID INT
 )
-RETURNS VARCHAR(50)
+RETURNS INT
 DETERMINISTIC
 READS SQL DATA
 BEGIN
     DECLARE total_spent DECIMAL(18, 2);
-    DECLARE user_rank VARCHAR(50);
+    DECLARE user_rank INT;
 
     -- 1. Validate Input
     IF p_touristID IS NULL THEN
-        RETURN 'Invalid';
+        RETURN 0; -- Bronze
     END IF;
 
     -- 2. Query Data
@@ -94,20 +94,20 @@ BEGIN
     WHERE touristID = p_touristID;
 
     IF total_spent IS NULL THEN
-        RETURN 'Bronze'; -- Mặc định
+        RETURN 0; -- Bronze
     END IF;
 
     -- 3. Sử dụng IF (Quy tắc nghiệp vụ tự định nghĩa)
     IF total_spent >= 50000000 THEN
-        SET user_rank = 'Diamond';
+        SET user_rank = 4; -- Diamond
     ELSEIF total_spent >= 20000000 THEN
-        SET user_rank = 'Platinum';
+        SET user_rank = 3; -- Platinum
     ELSEIF total_spent >= 10000000 THEN
-        SET user_rank = 'Gold';
+        SET user_rank = 2; -- Gold
     ELSEIF total_spent >= 5000000 THEN
-        SET user_rank = 'Silver';
+        SET user_rank = 1; -- Silver
     ELSE
-        SET user_rank = 'Bronze';
+        SET user_rank = 0; -- Bronze
     END IF;
 
     RETURN user_rank;
@@ -219,8 +219,8 @@ BEGIN
     SET new_userID = LAST_INSERT_ID();
 
     -- Tạo TOURIST (Bảng con)
-    INSERT INTO TOURIST (touristID, nationality, legalID, loyaltypoints, totalSpent, `rank`)
-    VALUES (new_userID, p_nationality, p_legalID, 0, 0, 'Bronze');
+    INSERT INTO TOURIST (touristID, nationality, legalID, loyaltypoints, totalSpent, rankLevel)
+    VALUES (new_userID, p_nationality, p_legalID, 0, 0, 0);
     
     COMMIT;
     
@@ -990,7 +990,7 @@ BEGIN
     IF OLD.totalSpent != NEW.totalSpent THEN
         -- Gọi hàm fn_get_tourist_rank
         UPDATE TOURIST
-        SET `rank` = fn_get_tourist_rank(NEW.touristID)
+        SET rankLevel = fn_get_tourist_rank(NEW.touristID)
         WHERE touristID = NEW.touristID;
     END IF;
 END$$
@@ -1058,15 +1058,7 @@ BEGIN
         WHERE voucherID = NEW.voucherID;
         
         -- Lấy thông tin rank user
-        SELECT `rank` INTO u_rank FROM TOURIST WHERE touristID = NEW.touristID;
-        SET u_rank_int = CASE u_rank
-            WHEN 'Bronze' THEN 0
-            WHEN 'Silver' THEN 1
-            WHEN 'Gold' THEN 2
-            WHEN 'Platinum' THEN 3
-            WHEN 'Diamond' THEN 4
-            ELSE 0
-        END;
+        SELECT rankLevel INTO u_rank_int FROM TOURIST WHERE touristID = NEW.touristID;
 
         -- Kiểm tra
         IF v_expDate IS NULL THEN
@@ -1260,3 +1252,32 @@ CALL sp_fix_all_like_counts();
 
 -- BƯỚC 6: Xóa thủ tục tạm
 DROP PROCEDURE sp_fix_all_like_counts;
+
+/*
+================================================================
+ 7. TRIGGER BỔ SUNG: KIỂM TRA TUỔI (Thay thế CHECK CONSTRAINT)
+================================================================
+*/
+DELIMITER $$
+
+DROP TRIGGER IF EXISTS trg_before_user_insert_check_age$$
+CREATE TRIGGER trg_before_user_insert_check_age
+BEFORE INSERT ON USER_ACCOUNT
+FOR EACH ROW
+BEGIN
+    IF NEW.DOB IS NOT NULL AND TIMESTAMPDIFF(YEAR, NEW.DOB, CURDATE()) < 18 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Người dùng phải đủ 18 tuổi.';
+    END IF;
+END$$
+
+DROP TRIGGER IF EXISTS trg_before_user_update_check_age$$
+CREATE TRIGGER trg_before_user_update_check_age
+BEFORE UPDATE ON USER_ACCOUNT
+FOR EACH ROW
+BEGIN
+    IF NEW.DOB IS NOT NULL AND TIMESTAMPDIFF(YEAR, NEW.DOB, CURDATE()) < 18 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Người dùng phải đủ 18 tuổi.';
+    END IF;
+END$$
+
+DELIMITER ;
